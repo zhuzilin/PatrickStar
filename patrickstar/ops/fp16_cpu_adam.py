@@ -11,7 +11,6 @@
 # permissions and limitations under the License.
 # See the AUTHORS file for names of contributors.
 
-import math
 from copy import deepcopy
 from typing import List
 
@@ -122,59 +121,6 @@ class FP16Adam(torch.optim.Optimizer):
                 exp_avg_sqs[i].view(-1),
                 loss_scale,
             )
-
-    def torch_adam(
-        self,
-        params: List[torch.Tensor],
-        grads: List[torch.Tensor],
-        exp_avgs: List[torch.Tensor],
-        exp_avg_sqs: List[torch.Tensor],
-        max_exp_avg_sqs: List[torch.Tensor],
-        state_steps: List[int],
-        *,
-        amsgrad: bool,
-        beta1: float,
-        beta2: float,
-        lr: float,
-        weight_decay: float,
-        eps: float,
-        maximize: bool,
-    ):
-        r"""Functional API that performs Adam algorithm computation.
-
-        See :class:`~torch.optim.Adam` for details.
-        """
-
-        for i, param in enumerate(params):
-
-            grad = grads[i] if not maximize else -grads[i]
-            exp_avg = exp_avgs[i]
-            exp_avg_sq = exp_avg_sqs[i]
-            step = state_steps[i]
-
-            bias_correction1 = 1 - beta1 ** step
-            bias_correction2 = 1 - beta2 ** step
-
-            if self.loss_scaler is not None:
-                grad.div_(self.loss_scaler.loss_scale)
-            if weight_decay != 0:
-                grad = grad.add(param, alpha=weight_decay)
-
-            # Decay the first and second moment running average coefficient
-            exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
-            exp_avg_sq.mul_(beta2).addcmul_(grad, grad.conj(), value=1 - beta2)
-            if amsgrad:
-                # Maintains the maximum of all 2nd moment running avg. till now
-                torch.maximum(max_exp_avg_sqs[i], exp_avg_sq, out=max_exp_avg_sqs[i])
-                # Use the max. for normalizing running avg. of gradient
-                denom = (max_exp_avg_sqs[i].sqrt() / math.sqrt(bias_correction2)).add_(
-                    eps
-                )
-            else:
-                denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(eps)
-
-            step_size = lr / bias_correction1
-            param.addcdiv_(exp_avg, denom, value=-step_size)
 
     def check_overflow(self, param):
         if self.loss_scaler is None:
