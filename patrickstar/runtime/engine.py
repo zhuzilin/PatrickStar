@@ -176,6 +176,11 @@ class PatrickStarEngine(torch.nn.Module):
             if chunk.is_local() and not chunk.is_dummy:
                 fp32_chunk = self.client.chunk_list.fp32_chunks[i]
                 chunk.payload.copy_(fp32_chunk.payload)
+            elif not chunk.is_local():
+                # make sure the remote payloads are always fetched
+                # in each iteration so that we always have the most
+                # up-to-date weights.
+                chunk.release_payload()
 
         global_timer.finish_profile("ADAM")
 
